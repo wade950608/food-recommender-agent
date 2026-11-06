@@ -1,0 +1,49 @@
+# 展示層 web（Nginx）→ 應用層 api（FastAPI）→ 資料層 db（PostgreSQL）
+services:
+  web:
+    image: nginx:alpine
+    ports: ["8080:80"]
+    volumes:
+      - ./docs:/usr/share/nginx/html:ro      # 與 GitHub Pages 共用同一份網頁
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: [api]
+    networks: [frontend]
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://food:${POSTGRES_PASSWORD}@db:5432/food
+    depends_on:
+      db: { condition: service_healthy }
+    networks: [frontend, backend, ai]
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: food
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: food
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U food"]
+      interval: 3s
+      retries: 10
+    networks: [backend]                        # internal：連不到外網
+
+  ollama:                                      # 選用：docker compose --profile local up -d
+    image: ollama/ollama
+    profiles: ["local"]
+    volumes: [ollama:/root/.ollama]
+    networks: [ai]
+
+networks:
+  frontend:
+  backend: { internal: true }
+  ai:
+
+volumes:
+  pgdata:
+  ollama:

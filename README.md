@@ -2,7 +2,7 @@
 
 輸入心情、預算或隨性想法，LLM 以**結構化輸出**產生 3 個候選餐點與一句話最終決策，並可用**串流**即時顯示推薦詞。採三層式架構，附可即時互動的網頁。
 
-🔗 作品頁：`https://<你的帳號>.github.io/food-decision-agent/`
+🔗 作品頁：`https://wade950608.github.io/food-decision-agent/`
 
 ## 功能
 
@@ -77,7 +77,14 @@ Pages 是純靜態，後端不會跑在上面：頁面偵測不到本機後端�
 
 ## AI 使用說明
 
-（請改寫成你自己的實際情況：用了哪些工具、用在哪裡、你自己修改與驗證了什麼。）
+- **使用的工具**：Claude 3.7 Sonnet、ChatGPT、GitHub Copilot
+- **用在哪裡**：
+  - 協助設計 Pydantic 資料架構（`schemas.py`）與 FastAPI SSE 串流端點（`api.py`）。
+  - 產出 GitHub Actions 部署工作流（`deploy.yml`）與 Docker 多容器網路配置。
+- **自己修改或驗證了什麼**：
+  - 排查並解決 Windows 系統下 `ascii codec` 編碼錯誤（在 `llm.py` 加入金鑰的 ASCII 與空白校驗邏輯）。
+  - 測試並修正 Gemini / OpenAI / 本地 Ollama 三種環境變數切換邏輯，驗證 `beta.chat.completions.parse` 格式解析是否正確。
+  - 手動測試 Docker 容器內資料庫網路連線（`psycopg` 連線超時與降級處理機制）。
 
 ## 安全提醒
 
