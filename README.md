@@ -2,7 +2,7 @@
 
 輸入心情、預算或隨性想法，LLM 以**結構化輸出**產生 3 個候選餐點與一句話最終決策，並可用**串流**即時顯示推薦詞。採三層式架構，附可即時互動的網頁。
 
-🔗 作品頁：`https://wade950608.github.io/food-decision-agent/`
+🔗 作品頁：`https://wade950608.github.io/food-recommender-agent/`
 
 ## 功能
 
