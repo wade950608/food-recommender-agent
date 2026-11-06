@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>吃什麼決策小幫手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--tile:#dcebe3;--slip:#fffdf8;--rule:#e9b8b0;--stamp:#c8321e;--ink:#1d3fa8;--text:#2a2a28;--muted:#5d6560;--line:#b9cfc4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--tile);color:var(--text);font:16px/1.75 "Noto Sans TC",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:32px 16px 64px}
+h1,h2,h3{line-height:1.3;margin:0}
+.ink{font-family:"Klee One","Noto Sans TC",serif;color:var(--ink)}
+a{color:var(--stamp)}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+/* 點菜單 */
+.slip{background:var(--slip);border-top:14px solid var(--stamp);padding:22px 24px 26px;
+  background-image:repeating-linear-gradient(transparent 0 35px,var(--rule) 35px 36px);background-position:0 120px;
+  box-shadow:0 2px 0 var(--line),0 10px 0 -4px #cfe0d6}
+.slip h1{font-size:clamp(28px,6vw,40px);letter-spacing:.08em;color:var(--stamp)}
+.sub{color:var(--muted);margin:4px 0 18px}
+form{display:flex;flex-direction:column;gap:10px}
+label{font-weight:700}
+textarea{width:100%;min-height:76px;padding:8px 10px;border:2px solid var(--text);border-radius:2px;background:#fff;
+  font:20px/1.5 "Klee One","Noto Sans TC",serif;color:var(--ink);resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px dashed var(--muted);background:transparent;padding:4px 12px;border-radius:20px;cursor:pointer;font:inherit;font-size:14px}
+.chips button:hover{border-color:var(--stamp);color:var(--stamp)}
+.go{align-self:flex-start;background:var(--stamp);color:#fff;border:0;padding:10px 26px;font:700 17px "Noto Sans TC";cursor:pointer;border-radius:2px;letter-spacing:.1em}
+.go:disabled{opacity:.55;cursor:wait}
+.status{font-size:14px;color:var(--muted);margin:14px 0 0}
+.status b{display:inline-block;width:9px;height:9px;border-radius:50%;background:#aaa;margin-right:6px}
+.status.live b{background:#2e9e5b}.status.demo b{background:#e0a100}
+/* 結果 */
+#out{margin-top:22px}
+.mood{font-size:19px;margin:0 0 14px}
+.opt{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 0;border-top:2px solid var(--rule)}
+.opt .dish{font-size:22px;font-weight:600}
+.opt .price{color:var(--stamp);font-weight:700;font-size:14px;align-self:center;white-space:nowrap}
+.opt .why{grid-column:1/-1;font-size:18px}
+.opt button{grid-column:1/-1;justify-self:start;margin-top:4px;background:none;border:1px solid var(--ink);color:var(--ink);padding:2px 12px;border-radius:2px;cursor:pointer;font:inherit;font-size:14px}
+.opt button:hover{background:var(--ink);color:#fff}
+.say{grid-column:1/-1;font-size:18px;min-height:0}
+.verdict{margin-top:12px;padding:12px 14px;border:3px double var(--stamp);font-size:22px;font-weight:600}
+.meta{font-size:13px;color:var(--muted);margin-top:10px}
+.err{color:var(--stamp);font-weight:500}
+#hist{list-style:none;padding:0;margin:0;font-size:15px}
+#hist li{padding:6px 0;border-top:1px solid var(--rule)}
+/* 文件區 */
+section.doc{margin-top:36px;background:var(--slip);padding:22px 24px;border-left:6px solid var(--stamp)}
+section.doc h2{font-size:24px;margin-bottom:10px}
+section.doc h3{font-size:17px;margin:16px 0 4px}
+pre{background:#25302b;color:#e9f3ec;padding:12px 14px;overflow:auto;font-size:14px;line-height:1.55;border-radius:2px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em}
+table{border-collapse:collapse;width:100%;font-size:15px}
+td,th{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
+th{background:#eef5f1}
+.tiers{display:flex;gap:0;align-items:stretch;flex-wrap:wrap;margin:8px 0}
+.tiers div{flex:1 1 180px;border:2px solid var(--text);padding:8px 12px;background:#fff;font-size:15px}
+.tiers div+div{border-left:0}
+.tiers b{display:block}
+@media(max-width:600px){.tiers div+div{border-left:2px solid var(--text);border-top:0}}
+@media(prefers-reduced-motion:no-preference){.opt{animation:in .25s ease-out both}@keyframes in{from{opacity:0}to{opacity:1}}}
+</style>
+</head>
+<body>
+<main>
+
+<div class="slip">
+  <h1>吃什麼決策小幫手</h1>
+  <p class="sub">寫下心情、預算或隨便想到的，店員（LLM）幫你開三張候選，再替你拍板。</p>
+  <form id="f">
+    <label for="q">今天的狀況</label>
+    <textarea id="q" maxlength="200" required></textarea>
+    <div class="chips" aria-label="快速範例">
+      <button type="button">下雨天想吃辣，預算 300</button>
+      <button type="button">加班到很晚，只想吃宵夜</button>
+      <button type="button">跟朋友慶生，想吃好一點</button>
+    </div>
+    <button class="go" id="go">幫我決定</button>
+  </form>
+  <p class="status" id="st" role="status"><b></b><span>偵測後端中…</span></p>
+  <div id="out" aria-live="polite"></div>
+</div>
+
+<section class="doc" id="history-sec" hidden>
+  <h2>最近的決定（來自資料庫）</h2>
+  <ul id="hist"></ul>
+</section>
+
+<section class="doc" id="what">
+  <h2>做了什麼</h2>
+  <p>輸入當下的心情或預算，後端呼叫 LLM，回傳<strong>經過 Pydantic 驗證的結構化結果</strong>（心情分析、3 個候選、一句話決策）。點「說服我」會用<strong>串流</strong>即時顯示店員的推薦詞。每次決定都寫進 PostgreSQL。</p>
+  <div class="tiers">
+    <div><b>展示層 web</b>Nginx：提供這個頁面，並把 /api/* 轉給應用層</div>
+    <div><b>應用層 api</b>FastAPI：<code>/api/decide</code>、<code>/api/persuade</code>、<code>/api/history</code></div>
+    <div><b>資料層 db</b>PostgreSQL：<code>decisions</code> 表，放在 internal 網路</div>
+  </div>
+  <p>用到的第 6 週能力：<strong>結構化輸出</strong>（<code>beta.chat.completions.parse</code>＋<code>Literal</code> 價位）與<strong>串流</strong>。以環境變數切換 Gemini／OpenAI／本地 Ollama，程式不用改。</p>
+</section>
+
+<section class="doc" id="how">
+  <h2>怎麼執行</h2>
+  <pre>git clone https://github.com/&lt;wade950608&gt;/food-recommender-agent.git
+cd food-recommender-agent
+Copy-Item .env.example .env      # 填入 GEMINI_API_KEY 與資料庫密碼
+docker compose up -d --build
+start http://localhost:8080      # 即時互動頁</pre>
+  <h3>只想用命令列</h3>
+  <pre>uv sync
+uv run python -m agent.cli "下雨天想吃辣，預算 300"</pre>
+  <h3>改用本地模型</h3>
+  <pre># .env：LLM_PROFILE=local、LLM_BASE_URL=http://ollama:11434/v1
+docker compose --profile local up -d --build
+docker compose exec ollama ollama pull qwen2.5:1.5b</pre>
+  <p>在 GitHub Pages 上開這頁時，若本機已啟動 <code>docker compose</code>，頁面會自動連到 <code>localhost:8080</code>；否則進入「離線示範」。</p>
+</section>
+
+<section class="doc" id="result">
+  <h2>執行結果</h2>
+  <summary><strong>輸入「下雨天想吃辣，預算 300」的範例輸出：</strong></summary>
+  <pre>{
+  "mood_analysis": "下雨天容易讓人感到陰涼沉悶，想吃辣來暖身驅濕並刺激食慾，300元的預算正好可以享受精緻又飽足的美味辣食。",
+  "options": [
+    { "dish": "麻辣小火鍋", "cuisine_style": "台式", "price_range": "$$ 中等(150-400元)",
+      "reason": "熱呼呼的香辣湯頭搭配豐富火鍋料，是雨天暖胃開胃的首選。" },
+    { "dish": "泰式酸辣海鮮麵", "cuisine_style": "泰式", "price_range": "$$ 中等(150-400元)",
+      "reason": "酸爽香辣的冬蔭功湯頭能瞬間醒腦，給雨天帶來滿滿活力。" },
+    { "dish": "四川麻辣乾鍋", "cuisine_style": "川味", "price_range": "$$ 中等(150-400元)",
+      "reason": "麻辣鮮香的炒料超下飯，能重重滿足你想吃辣的慾望。" }
+  ],
+  "final_verdict": "別猶豫了，今天就去吃一鍋熱氣騰騰的麻辣小火鍋吧！"
+}</pre></summary>
+
+<details>
+  <summary><strong>輸入「加班到很晚，只想吃宵夜」的範例輸出：</strong></summary>
+<pre>{
+  "mood_analysis": "加班到深夜辛苦了！現在的你非常需要溫熱又有滿足感的宵夜來療癒身心、紓解疲倦。",
+  "options": [
+    { "dish": "台式鹹酥雞", "cuisine_style": "台式小吃", "price_range": "$ 平價(150元以下)",
+      "reason": "酥脆香濃的邪惡口感能迅速釋放一整天累積的加班壓力。" },
+    { "dish": "永和豆漿（燒餅包蛋配熱豆漿）", "cuisine_style": "中式宵夜", "price_range": "$ 平價(150元以下)・中式消夜",
+      "reason": "熱騰騰的豆漿配上現做燒餅，暖心暖胃又撫慰人心。" },
+    { "dish": "深夜日式拉麵", "cuisine_style": "日式", "price_range": "$$ 中等(150-400元)",
+      "reason": "濃郁熱湯與叉燒能帶來滿滿的飽足感與儀式感。" }
+  ],
+  "final_verdict": "今晚就放縱一下，點一份香噴噴的鹹酥雞好好獎勵辛苦加班的自己吧！"
+}</pre>
+</details>
+
+<details>
+  <summary><strong>輸入「跟朋友慶生，想吃好一點」的範例輸出：</strong></summary>
+<pre>{
+  "mood_analysis": "慶生是特別的時刻，適合氣氛佳、餐點精緻且方便熱鬧聚會的高品質餐點。",
+  "options": [
+    { "dish": "日式高級和牛燒肉", "cuisine_style": "日式", "price_range": "$$$ 高價(400元以上)",
+      "reason": "專人服務的優質燒肉與熱鬧氣氛，非常適合朋友一起歡聚乾杯。" },
+    { "dish": "高級麻辣鴛鴦火鍋", "cuisine_style": "台式", "price_range": "$$$ 高價(400元以上)",
+      "reason": "熱騰騰的豆漿配上現做燒餅，暖心暖胃又撫慰人心。" },
+    { "dish": "精緻義式餐酒館", "cuisine_style": "義式", "price_range": "$$$ 高價(400元以上)",
+      "reason": "燈光美氣氛佳且餐點精緻，適合拍照打卡與朋友舒適地暢聊。" }
+  ],
+  "final_verdict": "今晚就選熱鬧有質感的日式高級和牛燒肉，用頂級美味為壽星留下難忘的回憶吧！"
+}</pre>
+</details>
+
+  <table>
+    <tr><th>Profile</th><th>模型</th><th>延遲</th><th>備註</th></tr>
+    <tr><td>gemini</td><td>gemini-3.5-flash</td><td>約9~11秒</td><td>用重複的問題去問的話，有時候都會是強力推薦同一種類型的食物，
+      例如下雨天想吃辣這個例子，就出現過連續三次都是強力推薦小火鍋，需要特別加上要求才會有其他種類型的食物被強力推薦。</td></tr>
+  </table>
+</section>
+
+<section class="doc" id="ai">
+  <h2>AI 使用說明</h2>
+  <table>
+    <tr><th>工具</th><th>用在哪裡</th><th>我自己修改／驗證了什麼</th></tr>
+    <tr><td>Claude</td><td>產生三層式架構初稿：FastAPI、compose.yaml、Actions workflow、本頁 HTML</td><td>（請改寫成你的實際情況，例如：實際啟動 compose、確認 db 連不到外網、修正錯誤、改了提示詞與價位選項）</td></tr>
+    <tr><td>Gemini API（執行期）</td><td>產生餐點候選與推薦詞</td><td>用 Pydantic 驗證輸出；用 <code>Literal</code> 限制價位；金鑰只放 .env</td></tr>
+  </table>
+  <p class="meta">金鑰未提交到 GitHub；<code>.gitignore</code> 已排除 <code>.env</code>。</p>
+</section>
+
+</main>
+
+<script>
+const LOCAL = ["localhost","127.0.0.1"].includes(location.hostname);
+const API = LOCAL ? "/api" : "http://localhost:8080/api";
+let live = false;
+
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+
+const DEMO = {
+  spicy: {mood_analysis:"下雨天想要有刺激感、能暖身的食物，預算寬鬆。",
+    options:[
+      {dish:"麻辣燙",cuisine_style:"川式",price_range:"$$ 中等(150-400元)",reason:"湯熱、辣度可調，淋雨後最暖。"},
+      {dish:"韓式辣炒年糕",cuisine_style:"韓式",price_range:"$ 平價(150元以下)",reason:"甜辣又飽足，配個湯剛好。"},
+      {dish:"四川水煮魚",cuisine_style:"川式",price_range:"$$$ 高價(400元以上)",reason:"想吃一頓過癮的就選它。"}],
+    final_verdict:"就吃麻辣燙，暖身又不超預算。"},
+  tired: {mood_analysis:"疲倦，需要熱食與低決策成本，預算 200 內。",
+    options:[
+      {dish:"牛肉麵",cuisine_style:"台式",price_range:"$ 平價(150元以下)",reason:"熱湯加澱粉，最快補回元氣。"},
+      {dish:"滷肉飯＋燙青菜",cuisine_style:"台式",price_range:"$ 平價(150元以下)",reason:"簡單安心，幾乎不用想。"},
+      {dish:"日式豚骨拉麵",cuisine_style:"日式",price_range:"$$ 中等(150-400元)",reason:"濃郁熱湯，給今天的自己一點獎勵。"}],
+    final_verdict:"牛肉麵，現在就出門。"}
+};
+const DEMO_SAY = "這碗熱呼呼的，一口下去今天的疲憊就化開了，價位剛好，吃完還有力氣洗澡睡覺。就決定是它了！";
+
+function setStatus(kind, msg){ const s=$("st"); s.className="status "+kind; s.querySelector("span").textContent=msg; }
+
+async function probe(){
+  try{
+    const r = await fetch(API+"/health",{signal:AbortSignal.timeout(2500)});
+    const j = await r.json(); live = true;
+    setStatus("live",`即時模式：${j.profile} / ${j.model}，資料庫${j.db?"正常":"未連線"}`);
+    loadHistory();
+  }catch{ live=false; setStatus("demo","離線示範模式：未偵測到本機後端（用 docker compose up 啟動後重新整理）"); }
+}
+
+function render(data, prompt){
+  const out = $("out"); out.replaceChildren();
+  const r = data.report;
+  out.append(el("p","mood ink",r.mood_analysis));
+  r.options.forEach(o=>{
+    const row = el("div","opt");
+    row.append(el("div","dish ink",o.dish), el("div","price",o.price_range+"・"+o.cuisine_style), el("div","why ink",o.reason));
+    const b = el("button",null,"說服我"); const say = el("div","say ink");
+    b.onclick = ()=>persuade(prompt,o.dish,say,b);
+    row.append(b,say); out.append(row);
+  });
+  out.append(el("div","verdict ink","▶ "+r.final_verdict));
+  if(data.model) out.append(el("p","meta",`${data.model}｜${data.latency_ms} ms${data.tokens?`｜${data.tokens} tokens`:""}`));
+}
+
+async function decide(prompt){
+  const go=$("go"); go.disabled=true; go.textContent="開單中…"; $("out").replaceChildren(el("p","meta","店員想一下…"));
+  try{
+    if(!live) await probe();
+    if(live){
+      const r = await fetch(API+"/decide",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt})});
+      if(!r.ok) throw new Error((await r.json()).detail||r.status);
+      render(await r.json(),prompt); loadHistory();
+    }else{
+      await new Promise(r=>setTimeout(r,500));
+      render({report:/辣/.test(prompt)?DEMO.spicy:DEMO.tired},prompt);
+    }
+  }catch(e){ $("out").replaceChildren(el("p","err","失敗："+e.message+"。檢查金鑰、額度（429）或模型名稱後再試。")); }
+  go.disabled=false; go.textContent="幫我決定";
+}
+
+async function persuade(prompt,dish,box,btn){
+  btn.disabled=true; box.textContent="";
+  if(!live){ for(const ch of DEMO_SAY){ box.textContent+=ch; await new Promise(r=>setTimeout(r,35)); } btn.disabled=false; return; }
+  try{
+    const r = await fetch(API+"/persuade",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt,dish})});
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf="";
+    for(;;){
+      const {done,value}=await rd.read(); if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const parts=buf.split("\n\n"); buf=parts.pop();
+      for(const p of parts){
+        if(!p.startsWith("data: "))continue;
+        const m=JSON.parse(p.slice(6));
+        if(m.t) box.textContent+=m.t;
+        if(m.error) box.textContent="失敗："+m.error;
+        if(m.done) box.append(el("span","meta",`　（首字 ${m.ttft_ms} ms）`));
+      }
+    }
+  }catch(e){ box.textContent="失敗："+e.message; }
+  btn.disabled=false;
+}
+
+async function loadHistory(){
+  try{
+    const rows = await (await fetch(API+"/history")).json();
+    const ul=$("hist"); ul.replaceChildren();
+    rows.forEach(r=>{ const li=el("li"); li.append(el("span","ink",r.prompt), document.createTextNode(" → "), el("strong",null,r.verdict||"")); ul.append(li); });
+    $("history-sec").hidden = rows.length===0;
+  }catch{}
+}
+
+$("f").addEventListener("submit",e=>{e.preventDefault(); decide($("q").value.trim());});
+document.querySelectorAll(".chips button").forEach(b=>b.onclick=()=>{$("q").value=b.textContent; $("q").focus();});
+probe();
+</script>
+</body>
+</html>
