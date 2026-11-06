@@ -1,0 +1,14 @@
+[project]
+name = "food-decision-agent"
+version = "0.1.0"
+description = "吃什麼決策小幫手：三層式架構 + LLM 結構化輸出與串流"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.60",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "psycopg[binary]>=3.2",
+]
